@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "rustscope-macros",
+    "rustscope",
+    "rustscope-cli",
+    "examples",
+]
+resolver = "2"

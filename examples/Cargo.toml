@@ -1,0 +1,47 @@
+[package]
+name = "rustscope-examples"
+version = "0.3.0"
+edition = "2021"
+
+[[bin]]
+name = "profile_demo"
+path = "src/profile_demo.rs"
+
+[[bin]]
+name = "benchmark_demo"
+path = "src/benchmark_demo.rs"
+
+[[bin]]
+name = "memory_demo"
+path = "src/memory_demo.rs"
+
+[[bin]]
+name = "advanced_demo"
+path = "src/advanced_demo.rs"
+
+[[bin]]
+name = "async_demo"
+path = "src/async_demo.rs"
+required-features = ["async-profiling"]
+
+[[bin]]
+name = "ci_demo"
+path = "src/ci_demo.rs"
+
+[[bin]]
+name = "features_demo"
+path = "src/features_demo.rs"
+
+[dependencies]
+rustscope = { path = "../rustscope" }
+
+tokio              = { version = "1", features = ["full"], optional = true }
+tracing            = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+
+[features]
+default         = []
+async-profiling = ["rustscope/async-profiling", "tokio", "tracing", "tracing-subscriber"]
+sampling        = ["rustscope/sampling"]
+hw-counters     = ["rustscope/hw-counters"]
+full            = ["async-profiling", "sampling", "hw-counters"]

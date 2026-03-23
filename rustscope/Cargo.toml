@@ -1,0 +1,53 @@
+[package]
+name = "rustscope"
+version = "0.3.0"
+edition = "2021"
+description = "Function-level profiler and benchmarker for Rust — outputs structured JSON"
+
+[dependencies]
+rustscope-macros = { path = "../rustscope-macros" }
+once_cell       = "1"
+parking_lot     = "0.12"
+serde           = { version = "1", features = ["derive"] }
+serde_json      = "1"
+ctrlc           = "3.5.2"
+
+# Phase 2: async/tracing integration
+tracing-core         = { version = "0.1", optional = true }
+tracing-subscriber   = { version = "0.3", features = ["registry"], optional = true }
+
+# Phase 3: sampling profiler  
+backtrace       = { version = "0.3", optional = true }
+
+# Phase 4: export formats
+# (pprof proto export — pulls in prost for protobuf encoding)
+prost           = { version = "0.12", optional = true }
+
+# libc needed for sampling (SIGPROF) on Linux + macOS
+libc            = { version = "0.2", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+perf-event      = { version = "0.4", optional = true }
+
+[features]
+default = []
+
+# Phase 1 (already built): Linux perf_event hardware counters
+hw-counters = ["perf-event"]
+
+# Phase 2: async span integration (tracing-core subscriber layer)
+async-profiling = ["tracing-core", "tracing-subscriber"]
+
+# Phase 3: sampling profiler (SIGPROF-based on Linux/macOS)
+sampling = ["backtrace", "libc"]
+
+# Phase 4: export formats
+pprof-export = ["prost"]
+
+# Convenience: everything
+full = ["hw-counters", "async-profiling", "sampling", "pprof-export"]
+
+[build-dependencies]
+# nothing needed
+
+[dev-dependencies]
