@@ -2,7 +2,7 @@
 //!
 //! Run: cargo test -p rustscope
 
-use rustscope::{Profiler, ProfileGuard, profile, profile_scope, profile_block, profile_if};
+use rustscope::{Profiler, ProfileGuard, assert_perf, profile, profile_scope, profile_block, profile_if};
 use rustscope::features::{timeline, outliers, metadata};
 
 // ─── helpers ─────────────────────────────────────────────────────────────────

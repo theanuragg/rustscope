@@ -13,11 +13,20 @@ export function StatsTab({ data, onSelectFunction }: Props) {
   const [selectedFunc, setSelectedFunc] = useState<string | null>(null);
 
   const sortedFunctions = [...data.functions].sort((a, b) => (b.timing?.total_ns || 0) - (a.timing?.total_ns || 0));
+  const crateRollups = data.crateRollups || [];
+  const moduleRollups = data.moduleRollups || [];
 
   const selectedFunctionData = data.functions.find(f => f.name === selectedFunc);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      {(crateRollups.length > 0 || moduleRollups.length > 0) && (
+        <div className="grid grid-cols-2 gap-0 border-b border-[var(--border2)] shrink-0">
+          <RollupPanel title="crate rollups" rows={crateRollups} />
+          <RollupPanel title="module rollups" rows={moduleRollups} />
+        </div>
+      )}
+
       {/* Hot Functions Table */}
       <div className="flex-1 overflow-auto bg-[var(--bg0)]">
         <table className="w-full border-collapse text-[11px]">
@@ -103,6 +112,22 @@ export function StatsTab({ data, onSelectFunction }: Props) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function RollupPanel({ title, rows }: { title: string; rows: NonNullable<ProfileData["crateRollups"]> }) {
+  return (
+    <div className="bg-[var(--bg1)] p-2 border-r border-[var(--border2)] last:border-r-0">
+      <div className="tracy-label-caps mb-2">{title}</div>
+      <div className="space-y-1">
+        {rows.slice(0, 5).map((row) => (
+          <div key={row.name} className="flex items-center justify-between text-[11px]">
+            <span className="truncate max-w-[170px] text-[var(--text1)]">{row.name}</span>
+            <span className="text-[var(--text0)]">{formatPct(row.total_pct || 0)}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

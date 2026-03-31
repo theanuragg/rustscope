@@ -26,20 +26,22 @@ cargo run --release -p rustscope-examples --bin features_demo
 The `rustscope` command is a separate tool that monitors **any** binary from the outside. Use this when you want a unified JSON report of system-level metrics (CPU, Memory, FDs, Threads).
 
 ```bash
-# Build the profiler CLI once
-cargo build --release -p rustscope-cli
-alias rustscope=./target/release/rustscope
+# Install the profiler CLI like a normal crate
+cargo install --path rustscope-cli
 
-# Profile a binary with live metrics and auto-cleanup of old JSONs
-# Default duration is now indefinite (runs until process exits or Ctrl-C)
-rustscope -v --cargo rustscope-examples --bin advanced_demo
+# Profile a workload that triggers CPU, memory, threads, FDs, and syscalls
+rustscope -v --cargo rustscope-examples --bin stress_demo
+
+# Or attach to an already-running Rust service and profile the full session
+rustscope --pid 12345 --name my-api
 ```
 
 **Why use the Profiler for Backends/Servers?**
 - **Indefinite Monitoring**: By default, it runs as long as your server is alive.
+- **Session Profiling**: `--pid <PID>` lets you attach to a running Rust process and collect one full session until `Ctrl-C`.
 - **Spike Detection**: If you hit a route and cause a CPU/Memory spike, it will be captured as a "Session Event".
 - **Live Event Count**: The terminal shows a real-time count of detected spikes (`EVENTS: N [!] SPIKE`).
-- **Unified Output**: Writes everything to `rustscope-last.json` (overwrites previous runs).
+- **Unified Output**: Writes everything to `rustscope-last.json` and prints a terminal overview with top metrics.
 - **Graceful Shutdown**: Hit `Ctrl-C` after your testing session; all spikes/metrics are flushed to the JSON.
 
 ---

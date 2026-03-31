@@ -339,6 +339,11 @@ impl GlobalProfiler {
             timeline_summary,
             locks: locks::snapshot(),
             async_tasks,
+            process_summary: None,
+            process_samples: Vec::new(),
+            memory_events: Vec::new(),
+            crate_rollups: Vec::new(),
+            module_rollups: Vec::new(),
         }
     }
 }

@@ -52,6 +52,21 @@ pub struct ProfileSession {
     /// Empty when async profiling is disabled or no tasks were observed.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub async_tasks: Vec<AsyncTaskRecord>,
+    /// External process/session summary from rustscope-cli.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub process_summary: Option<ProcessSummary>,
+    /// External process/session time-series samples from rustscope-cli.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub process_samples: Vec<ProcessSample>,
+    /// External session events such as spikes.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub memory_events: Vec<MemoryEvent>,
+    /// Aggregated crate-level hotspots when sampling data is available.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub crate_rollups: Vec<RollupRecord>,
+    /// Aggregated module-level hotspots when sampling data is available.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub module_rollups: Vec<RollupRecord>,
 }
 
 /// Static information about the machine and build.
@@ -95,7 +110,7 @@ pub struct FunctionRecord {
     /// `None` on non-Linux or when `hw-counters` feature is disabled.
     pub cpu: Option<CpuCounters>,
     /// Number of calls flagged as outliers (> 3σ above mean). 0 if none.
-    #[serde(skip_serializing_if = "crate::output::schema::is_zero")]
+    #[serde(default, skip_serializing_if = "crate::output::schema::is_zero")]
     pub outlier_count: u64,
 }
 
@@ -213,34 +228,11 @@ pub struct AsyncTaskRecord {
     pub poll_count: u64,
 }
 
-pub fn is_zero(v: &u64) -> bool {
-    *v == 0
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OutputSchema {
-    pub meta: Meta,
-    pub summary: Summary,
-    pub samples: Vec<Sample>,
-    pub functions: Vec<Function>,
-    pub allocations: Allocations,
-    pub memory_events: Vec<MemoryEvent>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Meta {
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProcessSummary {
     pub project: String,
-    pub duration_sec: u64,
-    pub start_ts: u64,
-    pub end_ts: u64,
-    pub rustscope_version: String,
     pub target_binary: String,
-    pub host_os: String,
-    pub cpu_cores: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Summary {
+    pub duration_sec: u64,
     pub cpu_avg_pct: f64,
     pub cpu_peak_pct: f64,
     pub heap_avg_mb: f64,
@@ -253,7 +245,7 @@ pub struct Summary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Sample {
+pub struct ProcessSample {
     pub ts: u64,
     pub cpu_pct: f64,
     pub heap_mb: f64,
@@ -263,39 +255,23 @@ pub struct Sample {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Function {
-    pub name: String,
-    pub module: String,
-    pub self_pct: f64,
-    pub total_pct: f64,
-    pub calls: u64,
-    pub avg_ns: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Allocations {
-    pub by_size: BySize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BySize {
-    #[serde(rename = "0-64B")]
-    pub range_0_64b: u64,
-    #[serde(rename = "65-512B")]
-    pub range_65_512b: u64,
-    #[serde(rename = "513B-4KB")]
-    pub range_513b_4kb: u64,
-    #[serde(rename = "4KB-64KB")]
-    pub range_4kb_64kb: u64,
-    #[serde(rename = ">64KB")]
-    pub range_gt_64kb: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryEvent {
     pub ts: u64,
     #[serde(rename = "type")]
-    pub event_type: String, // "alloc" | "dealloc" | "spike"
+    pub event_type: String,
     pub size_bytes: u64,
     pub location: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RollupRecord {
+    pub name: String,
+    pub total_pct: f64,
+    pub self_pct: f64,
+    pub calls: u64,
+    pub function_count: u32,
+}
+
+pub fn is_zero(v: &u64) -> bool {
+    *v == 0
 }

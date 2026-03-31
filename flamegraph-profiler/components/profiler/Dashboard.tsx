@@ -9,6 +9,7 @@ import { MemoryTab } from "./MemoryTab";
 import { ZonesTab } from "./ZonesTab";
 import { AsyncTab } from "./AsyncTab";
 import { LocksTab } from "./LocksTab";
+import { CompareTab } from "./CompareTab";
 import { FloatingPanel } from "./FloatingPanel";
 import { ContextMenu } from "./ContextMenu";
 
@@ -100,6 +101,8 @@ export function Dashboard({ data, onReset }: Props) {
         return <AsyncTab data={data} />;
       case "Locks":
         return <LocksTab data={data} />;
+      case "Compare":
+        return <CompareTab current={data} />;
       default:
         return <StatsTab data={data} onSelectFunction={() => {}} />;
     }
@@ -149,10 +152,11 @@ export function Dashboard({ data, onReset }: Props) {
         <div className="w-[1px] h-[16px] bg-[var(--border2)] mx-1" />
 
         <div className="flex items-center gap-1">
-          {["Zones", "Memory", "Locks", "Async"].map((tab) => (
+          {["Zones", "Memory", "Locks", "Async", "Compare"].map((tab) => (
             <button
               key={tab}
-              className={`tracy-button px-3 ${tab === "Zones" ? "border-b-2 border-b-[var(--accent)]" : ""}`}
+              onClick={() => setActiveTab(tab)}
+              className={`tracy-button px-3 ${tab === activeTab ? "border-b-2 border-b-[var(--accent)]" : ""}`}
             >
               {tab}
             </button>
@@ -208,7 +212,7 @@ export function Dashboard({ data, onReset }: Props) {
         >
           {/* Detail panel tabs */}
           <div className="h-[22px] bg-[var(--bg1)] border-b border-[var(--border2)] flex items-center">
-            {["Stats", "Memory", "Zones", "Async", "Locks"].map((tab) => (
+            {["Stats", "Memory", "Zones", "Async", "Locks", "Compare"].map((tab) => (
               <div
                 key={tab}
                 onClick={() => setActiveTab(tab)}

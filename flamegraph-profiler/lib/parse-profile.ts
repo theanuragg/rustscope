@@ -20,6 +20,14 @@ const MetaSchema = z.object({
   cpu_cores: z.number().optional(),
 }).optional();
 
+const RollupSchema = z.object({
+  name: z.string(),
+  total_pct: z.number().optional(),
+  self_pct: z.number().optional(),
+  calls: z.number().optional(),
+  function_count: z.number().optional(),
+});
+
 const HostSchema = z.object({
   os: z.string().optional(),
   arch: z.string().optional(),
@@ -110,10 +118,15 @@ const UploadedProfileSchema = z.object({
   functions: z.array(FunctionSchema).optional(),
   call_trees: z.array(CallTreeSchema).optional(),
   session_memory: SessionMemorySchema,
+  process_summary: z.any().optional(),
+  process_samples: z.array(z.any()).optional(),
   // CLI legacy
   samples: z.array(z.any()).optional(),
   summary: z.any().optional(),
   memory_events: z.array(z.any()).optional(),
+  crate_rollups: z.array(RollupSchema).optional(),
+  module_rollups: z.array(RollupSchema).optional(),
+  session_meta: z.any().optional(),
 });
 
 // ─── Formatting Utils ──────────────────────────────────────────────────────
@@ -223,10 +236,21 @@ export function parseSession(json: unknown): ParseResult {
   }
 
   const raw = parsed.data as any;
-  const durationNs = raw.session_duration_ns || (raw.meta?.duration_sec ? raw.meta.duration_sec * 1e9 : 1e9);
+  const durationNs =
+    raw.session_duration_ns ||
+    (raw.process_summary?.duration_sec ? raw.process_summary.duration_sec * 1e9 : undefined) ||
+    (raw.meta?.duration_sec ? raw.meta.duration_sec * 1e9 : 1e9);
+  const sessionMeta = raw.session_meta || {};
+  const processSummary = raw.process_summary || raw.summary || {};
+  const projectName =
+    raw.meta?.project ||
+    processSummary.project ||
+    sessionMeta.project ||
+    raw.host?.os ||
+    "Session";
 
   const meta: ProfileMeta = {
-    name: raw.meta?.project || raw.host?.os || "Session",
+    name: projectName,
     rustVersion: raw.host?.rustc_version || raw.meta?.rustscope_version,
     durationNs,
     tool: "rustscope",
@@ -268,7 +292,9 @@ export function parseSession(json: unknown): ParseResult {
       meta,
       cpu,
       functions: raw.functions || [],
-      samples: raw.samples,
+      crateRollups: raw.crate_rollups || [],
+      moduleRollups: raw.module_rollups || [],
+      samples: raw.process_samples || raw.samples,
       events: raw.memory_events,
       raw, // Keep raw for detailed views
     },

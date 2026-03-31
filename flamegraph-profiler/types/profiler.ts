@@ -63,6 +63,10 @@ export interface ProfileData {
   cpu: ProfileFrame[];
   /** Detailed function list (Stats view) */
   functions: ProfileFunction[];
+  /** Crate-level hotspot rollups */
+  crateRollups?: ProfileRollup[];
+  /** Module-level hotspot rollups */
+  moduleRollups?: ProfileRollup[];
   /** Frames for allocation mode (optional) */
   alloc?: ProfileFrame[];
   /** Frames for off-cpu mode (optional) */
@@ -85,6 +89,14 @@ export interface ProfileData {
   }>;
   /** Raw uploaded JSON */
   raw?: any;
+}
+
+export interface ProfileRollup {
+  name: string;
+  total_pct: number;
+  self_pct: number;
+  calls: number;
+  function_count: number;
 }
 
 export interface ProfileFunction {

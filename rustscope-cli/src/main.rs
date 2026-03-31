@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use anyhow::{Result, Context};
 use chrono::Utc;
 use std::sync::Arc;
-use tokio::signal;
+use tokio::{signal, time::{sleep, Duration}};
 
 mod profiler;
 mod output;
@@ -14,6 +14,14 @@ use profiler::Profiler;
 #[derive(Parser, Debug)]
 #[command(author, version = "0.3.1", about = "Unified Rust performance profiler")]
 struct Args {
+    /// Attach to an already-running process ID instead of spawning a child
+    #[arg(long)]
+    pid: Option<u32>,
+
+    /// Optional display name for attached session profiling
+    #[arg(long)]
+    name: Option<String>,
+
     /// How long to profile in seconds (0 for indefinite)
     #[arg(short, long, default_value_t = 0)]
     duration: u32,
@@ -51,7 +59,10 @@ struct Args {
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    let (binary_path, binary_args, project_name) = if let Some(ref crate_name) = args.cargo {
+    let (target_pid, binary_path, binary_args, project_name, spawned_child) = if let Some(pid) = args.pid {
+        let project_name = args.name.clone().unwrap_or_else(|| format!("pid-{}", pid));
+        (pid, None, Vec::new(), project_name, false)
+    } else if let Some(ref crate_name) = args.cargo {
         if !args.no_build {
             println!("Building project {} in release mode...", crate_name);
             let mut cmd = Command::new("cargo");
@@ -90,10 +101,10 @@ async fn main() -> Result<()> {
             found.unwrap_or_else(|| PathBuf::from("target/release").join(target_bin))
         };
         
-        (binary_path, args.binary_args.clone(), target_bin.clone())
+        (0, Some(binary_path), args.binary_args.clone(), target_bin.clone(), true)
     } else {
         if args.binary_args.is_empty() {
-            anyhow::bail!("No binary specified. Use -- <binary> [args...] or --cargo <crate>");
+            anyhow::bail!("No target specified. Use --pid <PID>, -- <binary> [args...], or --cargo <crate>");
         }
         let binary_path_str = &args.binary_args[0];
         let binary_path = PathBuf::from(binary_path_str);
@@ -121,28 +132,36 @@ async fn main() -> Result<()> {
             .and_then(|n| n.to_str())
             .unwrap_or("unknown")
             .to_string();
-        (resolved_path, args.binary_args[1..].to_vec(), project_name)
+        (0, Some(resolved_path), args.binary_args[1..].to_vec(), project_name, true)
     };
 
-    if !binary_path.exists() {
-        let msg = format!("Binary not found at: {:?}\n\nTips:\n- Use -- <absolute/relative/path/to/binary>\n- Use --cargo <crate> --bin <name> to build and run automatically\n- If running a local binary, ensure you prefix with './' (e.g., -- ./target/release/my-bin)", binary_path);
-        anyhow::bail!(msg);
+    if let Some(ref binary_path) = binary_path {
+        if !binary_path.exists() {
+            let msg = format!("Binary not found at: {:?}\n\nTips:\n- Use -- <absolute/relative/path/to/binary>\n- Use --cargo <crate> --bin <name> to build and run automatically\n- Use --pid <PID> to attach to an already-running Rust service\n- If running a local binary, ensure you prefix with './' (e.g., -- ./target/release/my-bin)", binary_path);
+            anyhow::bail!(msg);
+        }
     }
 
-    if args.duration > 0 {
+    if args.pid.is_some() && args.duration == 0 {
+        println!("Profiling session {} until Ctrl-C or process exit...", project_name);
+    } else if args.duration > 0 {
         println!("Profiling {} for {}s...", project_name, args.duration);
     } else {
         println!("Profiling {} until process exits or Ctrl-C...", project_name);
     }
 
-    let mut child = Command::new(&binary_path)
-        .args(&binary_args)
-        .stdout(if args.verbose { Stdio::inherit() } else { Stdio::null() })
-        .stderr(if args.verbose { Stdio::inherit() } else { Stdio::null() })
-        .spawn()
-        .context(format!("Failed to spawn binary: {:?}", binary_path))?;
+    let child = if let Some(ref binary_path) = binary_path {
+        Some(Command::new(binary_path)
+            .args(&binary_args)
+            .stdout(if args.verbose { Stdio::inherit() } else { Stdio::null() })
+            .stderr(if args.verbose { Stdio::inherit() } else { Stdio::null() })
+            .spawn()
+            .context(format!("Failed to spawn binary: {:?}", binary_path))?)
+    } else {
+        None
+    };
 
-    let pid = child.id();
+    let pid = child.as_ref().map(|c| c.id()).unwrap_or(target_pid);
     let start_ts = Utc::now().timestamp_millis() as u64;
     let profiler = Arc::new(Profiler::new(pid, args.duration, args.sample_rate, args.verbose));
 
@@ -150,6 +169,7 @@ async fn main() -> Result<()> {
     let profiling_task = tokio::spawn(async move {
         profiler_clone.start().await
     });
+    tokio::pin!(profiling_task);
 
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel();
 
@@ -159,17 +179,32 @@ async fn main() -> Result<()> {
         let _ = shutdown_tx.send(());
     });
 
+    let mut finished_naturally = false;
     tokio::select! {
-        _ = profiling_task => {
-            println!("Profiling duration completed.");
+        result = &mut profiling_task => {
+            result??;
+            finished_naturally = true;
+            println!("Profiling session completed.");
         }
         _ = &mut shutdown_rx => {
-            // Profiler will stop on next tick as we'll drop the task or handle it via a stop flag
+            profiler.stop();
         }
     }
 
-    // Ensure child is terminated
-    let _ = child.kill();
+    if !finished_naturally {
+        sleep(Duration::from_millis(150)).await;
+        let result = (&mut profiling_task).await;
+        result??;
+        println!("Profiling session completed.");
+    }
+
+    if let Some(mut child) = child {
+        if spawned_child {
+            let _ = child.kill();
+        }
+    }
+
+    profiler.stop();
 
     let output_path = args.output.unwrap_or_else(|| {
         "rustscope-last.json".to_string()
@@ -179,12 +214,24 @@ async fn main() -> Result<()> {
         let _ = std::fs::remove_file(&output_path);
     }
 
-    let results = profiler.collect_results(project_name, binary_path.to_string_lossy().to_string(), start_ts).await?;
+    let target_binary = if let Some(ref binary_path) = binary_path {
+        binary_path.to_string_lossy().to_string()
+    } else {
+        format!("pid:{}", pid)
+    };
+
+    let results = profiler.collect_results(project_name, target_binary, start_ts).await?;
     
     output::write_json(&output_path, &results)?;
+    output::print_overview(&output_path, &results);
 
+    let final_duration_sec = results
+        .process_summary
+        .as_ref()
+        .map(|summary| summary.duration_sec)
+        .unwrap_or(results.session_duration_ns / 1_000_000_000);
     println!("✓ Profile written to {} ({} samples, {}s, {} events)", 
-        output_path, results.samples.len(), results.meta.duration_sec, results.memory_events.len());
+        output_path, results.process_samples.len(), final_duration_sec, results.memory_events.len());
 
     Ok(())
 }

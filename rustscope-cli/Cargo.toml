@@ -3,6 +3,12 @@ name = "rustscope-cli"
 version = "0.3.1"
 edition = "2021"
 description = "Unified Rust performance profiler CLI"
+license = "MIT"
+readme = "../README.md"
+repository = "https://github.com/anurag/rustscope"
+homepage = "https://github.com/anurag/rustscope"
+keywords = ["rust", "profiling", "performance", "cli", "benchmark"]
+categories = ["development-tools::profiling", "command-line-utilities"]
 
 [[bin]]
 name = "rustscope"

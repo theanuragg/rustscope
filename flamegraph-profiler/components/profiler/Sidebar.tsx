@@ -177,3 +177,4 @@ function StatRow({ label, value, color }: { label: string; value: any; color?: s
       </span>
     </div>
   );
+}

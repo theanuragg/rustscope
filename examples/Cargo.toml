@@ -32,6 +32,10 @@ path = "src/ci_demo.rs"
 name = "features_demo"
 path = "src/features_demo.rs"
 
+[[bin]]
+name = "stress_demo"
+path = "src/stress_demo.rs"
+
 [dependencies]
 rustscope = { path = "../rustscope" }
 
