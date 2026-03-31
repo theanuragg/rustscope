@@ -1,4 +1,5 @@
 # RustScope v3
+
 > Unified performance profiling infrastructure for Rust systems. One command, one JSON, zero configuration.
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
@@ -9,7 +10,8 @@
 ---
 
 ## TABLE OF CONTENTS
-- [1. WHAT THIS IS](#1-what-this-is)
+
+- [1. WHAT THIS IS](#1-what-this-is-executive-summary)
 - [2. IMPLEMENTED & TESTED FEATURES](#2-implemented--tested-features)
 - [3. ARCHITECTURE OVERVIEW](#3-architecture-overview)
 - [4. DETAILED FLOWS](#4-detailed-flows)
@@ -37,6 +39,7 @@
 ## 2. IMPLEMENTED & TESTED FEATURES
 
 ### Core Profiling (Library)
+
 - **Function Instrumentation** — Attribute macros for timing, memory, and stack depth.
   - **Status**: `✅ Implemented + Tested`
   - **Coverage**: `rustscope/tests/integration.rs::test_basic_profiling`
@@ -49,6 +52,7 @@
   - **Coverage**: `rustscope/tests/integration.rs::test_outlier_detection`
 
 ### System Analysis (CLI)
+
 - **Indefinite Process Monitoring** — Continuous polling of CPU, Memory, Threads, and FDs.
   - **Status**: `✅ Implemented`
   - **Contract**: Automatically stops and flushes data when the child process exits or on `Ctrl-C`.
@@ -106,16 +110,19 @@ graph TB
 ### 3.3 Architectural Decisions & Trade-offs
 
 **Decision**: **Welford's Online Algorithm for Outliers**
+
 - **Rationale**: We need to detect anomalies in real-time without storing every single call duration in memory.
 - **Theory cited**: Welford's algorithm allows computing running mean and variance in $O(1)$ time and $O(1)$ space.
 - **Trade-offs**: More sensitive to early-session noise; requires a "warmup" period (default 10 calls).
 
 **Decision**: **Indefinite duration by default (`-d 0`)**
+
 - **Rationale**: Most backend performance issues happen during specific session events (hitting a route), not fixed time windows.
 - **Theory cited**: Event-driven monitoring — decoupling collection from time improves signal-to-noise ratio for servers.
 - **Anti-patterns avoided**: "Blind profiling" where data collection stops before the interesting event occurs.
 
 **Decision**: **Async per-poll wrapping for `#[profile]`**
+
 - **Rationale**: Traditional timing on async fns measures "Wall Time" (including time spent yielded), which is useless for CPU profiling.
 - **Trade-offs**: Slightly higher overhead due to future wrapping; requires `async-profiling` feature.
 
@@ -150,13 +157,16 @@ sequenceDiagram
 ```
 
 ### 4.2 Indefinite Backend Monitoring
+
 When running with `-d 0` (default), the CLI monitors for **Session Events**.
+
 - **Scenario**: User hits `/heavy-route`.
 - **Detection**: Memory jumps 10MB.
 - **Action**: CLI pushes a `MemoryEvent { type: "spike", location: "Memory spike: +10.0 MB" }`.
 - **TUI**: Terminal flashes `[!] SPIKE` and increments `EVENTS` count.
 
 ### 4.3 Error & Recovery Flows
+
 - **Process Not Found**: If `proc_pidinfo` or `/proc` reads fail repeatedly, the CLI assumes the child has exited, flushes remaining data, and shuts down cleanly.
 - **macOS Permission Denied**: If `sample` fails due to SIP/Permissions, the tool logs a warning but continues collecting system metrics (CPU/Mem).
 
@@ -165,6 +175,7 @@ When running with `-d 0` (default), the CLI monitors for **Session Events**.
 ## 5. DATA MODEL & SCHEMA
 
 ### Entity-Relationship (JSON Shape)
+
 The output is a single `ProfileSession` object:
 
 ```mermaid
@@ -198,6 +209,7 @@ erDiagram
 RustScope includes a premium, web-based visualizer built with **Next.js**, **Tailwind CSS**, and **D3** for deep analysis of your performance profile sessions.
 
 ### 6.1 Key Features
+
 - **Instant Visualization** — Simply drag and drop any `rustscope-last.json` to generate high-resolution flamegraphs.
 - **Multi-Format Support** — Native support for RustScope JSON, plus compatibility with `inferno`, `samply`, and `pprof` stack traces.
 - **Interactive Stack Explorer** — Seamlessly toggle between **Flamegraphs** (top-down) and **Icicle Charts** (bottom-up) with smooth D3 transitions.
@@ -205,6 +217,7 @@ RustScope includes a premium, web-based visualizer built with **Next.js**, **Tai
 - **Smart Insights** — Automated heuristic analysis flags critical bottlenecks, deep recursion, and memory-heavy hot paths.
 
 ### 6.2 Running Locally
+
 The visualizer is a dedicated application located in the `flamegraph-profiler/` directory.
 
 ```bash
@@ -219,11 +232,13 @@ npm run dev
 ## 7. GETTING STARTED
 
 ### 7.1 Prerequisites
+
 - **Rust**: `>= 1.75.0`
 - **OS**: macOS (Intel/Apple Silicon) or Linux (x86_64).
 - **macOS Tools**: `sample` command (built-in).
 
 ### 7.2 Environment Setup
+
 ```bash
 # 1. Clone & Build CLI
 git clone https://github.com/anurag/rustscope && cd rustscope
@@ -234,6 +249,7 @@ alias rustscope=$(pwd)/target/release/rustscope
 ```
 
 ### 7.3 Environment Variables
+
 | Variable | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `RUSTSCOPE_ALLOC_PIPE` | ❌ | — | Named pipe for LD_PRELOAD tracking (Linux only) |
@@ -244,7 +260,8 @@ alias rustscope=$(pwd)/target/release/rustscope
 ## 8. TESTING
 
 ### Test Architecture
-```
+
+```text
 rustscope/
 ├── tests/
 │   └── integration.rs   # Core library logic (Macros, Outliers, Stats)
@@ -253,6 +270,7 @@ rustscope-cli/
 ```
 
 ### Running Tests
+
 ```bash
 # Core Library Tests
 cargo test -p rustscope
@@ -266,17 +284,20 @@ cargo test -p rustscope
 ## 9. OPERATIONAL RUNBOOK
 
 **Scenario**: **Metrics report 0.0 values**
+
 - **Symptoms**: JSON has `0.0` for CPU/Heap.
 - **Diagnosis**: Check if process exited instantly or if running on an unsupported OS.
 - **Remediation**: Use `-v` to check live terminal metrics. Ensure target binary is prefixed with `./`.
 
 **Scenario**: **JSON file too large**
+
 - **Symptoms**: File > 100MB for long runs.
 - **Remediation**: Reduce `--sample-rate` (default 100Hz) to 10Hz.
 
 ---
 
 ## 10. SECURITY MODEL
+
 - **Auth**: None. Designed for local development.
 - **Secrets**: CLI does not capture environment variables of the target process by default.
 - **Data in Transit**: All communication between CLI and Target is via local OS pipes/signals.
@@ -284,6 +305,7 @@ cargo test -p rustscope
 ---
 
 ## 11. PERFORMANCE & SCALABILITY
+
 - **Throughput**: Designed to handle binaries with **100,000+ function calls per second**.
 - **Bottlenecks**: High sample rates (> 1000Hz) will introduce measurable OS interrupt overhead.
 - **Scaling**: The library scales horizontally with threads using `AtomicU64` for metric aggregation.
@@ -291,6 +313,7 @@ cargo test -p rustscope
 ---
 
 ## 12. CONTRIBUTING
+
 - **Branches**: `feature/*` or `fix/*`.
 - **Commits**: Conventional Commits preferred.
 - **PRs**: Must include a test case in `integration.rs` for new library features.
@@ -298,6 +321,7 @@ cargo test -p rustscope
 ---
 
 ## 13. CHANGELOG & ROADMAP
+
 - **v0.3.1 (Current)**: Unified CLI, macOS Spike detection, indefinite duration, and new Visualizer frontend.
 - **v0.4.0 (Next)**: **Linux LD_PRELOAD allocator shim** for per-call allocation tracking.
   - **Zero-instrumentation Tracking**: Intercepts `libc` symbols (`malloc`, `free`, `realloc`) for any binary (C/C++, legacy Rust, etc.).
@@ -305,5 +329,6 @@ cargo test -p rustscope
   - **Deep Memory Analysis**: Enables tracking of allocation source and lifetime even for non-Rust dependencies.
 
 ---
+
 **License**: MIT  
 **Acknowledgements**: Inspired by `perf`, `dtrace`, and the `parking_lot` community.
