@@ -49,6 +49,8 @@ struct Frame {
     depth_at_entry: u32,
     /// Sequential call index for this function (for outlier tracking).
     call_index: u64,
+    /// Children collected during this frame's execution.
+    children: Vec<CallTreeNode>,
 }
 
 thread_local! {
@@ -551,6 +553,7 @@ impl ProfileGuard {
                 child_ns: 0,
                 depth_at_entry: depth,
                 call_index: 0, // filled in on drop from FunctionState.record.call_count
+                children: Vec::new(),
             }));
         }
         Self { name, file, line, module }
@@ -610,15 +613,15 @@ impl Drop for ProfileGuard {
                     None
                 },
                 cpu_cycles: cpu.as_ref().map(|c| c.cpu_cycles),
-                children: Vec::new(), // children attach via the stack logic below
+                children: frame.children,
             };
 
-            if stack.is_empty() {
+            if let Some(parent) = stack.last_mut() {
+                parent.children.push(node);
+            } else {
                 // We're a root call — push to global tree
                 GLOBAL_PROFILER.push_call_tree_root(node);
             }
-            // (child→parent tree assembly is intentionally deferred to avoid
-            // locking; roots-only call trees are sufficient for flame graphs)
 
             GLOBAL_PROFILER.record(
                 frame.name,

@@ -1,10 +1,11 @@
 # Rust build artifacts
 target/
+target/**
 target/*
 Cargo.lock
 rustscope-last.json
 CACHEDIR.TAG
-
+target/debug/*
 # Environment files
 .env
 .env.*

@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Tracy Colors */
+  --bg0:     #0d0d0f;   /* outermost, window bg */
+  --bg1:     #131316;   /* panel backgrounds */
+  --bg2:     #1a1a1f;   /* row alternating, raised surfaces */
+  --bg3:     #22222a;   /* hover states, selected rows */
+  --border:  #2a2a35;   /* all borders */
+  --border2: #383845;   /* emphasized borders, panel edges */
+  --text0:   #e8e6df;   /* primary text */
+  --text1:   #9c9a92;   /* secondary/labels */
+  --text2:   #5c5a55;   /* tertiary/disabled */
+  --text3:   #38362f;   /* very dim */
+
+  /* Zone / heat colors */
+  --zone-red:    #c0392b;
+  --zone-orange: #d35400;
+  --zone-amber:  #b7770d;
+  --zone-green:  #1e8449;
+  --zone-teal:   #1a7a6e;
+  --zone-blue:   #1f618d;
+  --zone-purple: #6c3483;
+  --zone-pink:   #922b5e;
+  --zone-gray:   #4a4a52;
+
+  /* Semantic accents */
+  --accent:      #7c6fe0;   /* selection highlight, active tab */
+  --hot:         #c0392b;   /* >70% time share */
+  --warm:        #d35400;   /* 30-70% */
+  --cool:        #1e8449;   /* <10% */
+  --leak:        #e74c3c;   /* memory not freed */
+  --ok:          #27ae60;   /* clean */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg0);
+  color: var(--text0);
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Scrollbars - Tracy style: 6px wide, --bg3 track, --border2 thumb, no radius */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg3);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border2);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text2);
+}
+
+/* Utility classes for Tracy's density */
+.tracy-panel {
+  background: var(--bg1);
+  border: 1px solid var(--border);
+}
+
+.tracy-row {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+  transition: background-color 80ms linear;
+}
+
+.tracy-row:hover {
+  background-color: var(--bg3);
+}
+
+.tracy-row-selected {
+  background-color: var(--bg3);
+  border-left: 2px solid var(--accent);
+}
+
+.tracy-button {
+  height: 22px;
+  padding: 0 8px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text0);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 80ms linear;
+}
+
+.tracy-button:hover {
+  background: var(--bg3);
+}
+
+.tracy-label-caps {
+  font-size: 11px;
+  color: var(--text1);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.tracy-text-dim {
+  color: var(--text2);
+}
+
+.tracy-text-vdim {
+  color: var(--text3);
+}

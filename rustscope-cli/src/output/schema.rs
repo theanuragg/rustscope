@@ -53,6 +53,9 @@ pub struct Function {
     pub total_pct: f64,
     pub calls: u64,
     pub avg_ns: u64,
+    pub depth: u32,
+    pub x: f64,
+    pub w: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
