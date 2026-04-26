@@ -6,7 +6,7 @@ use crate::output::{
     schema::{Sample, OutputSchema, Summary, MemoryEvent, Rollup}
 };
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use tokio::sync::Mutex;
 use chrono::Utc;
 use std::collections::HashMap;
@@ -36,6 +36,8 @@ pub struct Profiler {
     syscall_collector: Mutex<SyscallCollector>,
     function_sampler: Arc<FunctionSampler>,
     stop_requested: AtomicBool,
+    compact_mode: AtomicBool,
+    refresh_ms: AtomicU64,
     started_at: std::time::Instant,
     last_dashboard_refresh_secs: Mutex<u64>,
 }
@@ -55,6 +57,8 @@ impl Profiler {
             syscall_collector: Mutex::new(SyscallCollector::new(pid)),
             function_sampler: Arc::new(FunctionSampler::new(pid)),
             stop_requested: AtomicBool::new(false),
+            compact_mode: AtomicBool::new(false),
+            refresh_ms: AtomicU64::new(1000),
             started_at: std::time::Instant::now(),
             last_dashboard_refresh_secs: Mutex::new(u64::MAX),
         }
@@ -62,6 +66,19 @@ impl Profiler {
 
     pub fn stop(&self) {
         self.stop_requested.store(true, Ordering::SeqCst);
+    }
+
+    pub fn toggle_compact_mode(&self) {
+        let next = !self.compact_mode.load(Ordering::SeqCst);
+        self.compact_mode.store(next, Ordering::SeqCst);
+    }
+
+    pub fn set_refresh_ms(&self, refresh_ms: u64) {
+        self.refresh_ms.store(refresh_ms.max(250), Ordering::SeqCst);
+    }
+
+    pub fn refresh_ms(&self) -> u64 {
+        self.refresh_ms.load(Ordering::SeqCst)
     }
 
     pub async fn start(&self) -> Result<()> {
@@ -168,6 +185,8 @@ impl Profiler {
         let samples = self.samples.lock().await;
         let memory_events = self.memory_events.lock().await;
         let mut sampled_functions = self.function_sampler.get_functions().await;
+        let mut hotspot_snapshots = self.function_sampler.get_snapshots().await;
+        let mut sampling_diagnostics = self.function_sampler.get_diagnostics().await;
         let end_ts = Utc::now().timestamp_millis() as u64;
 
         // Calculate summary stats
@@ -186,7 +205,7 @@ impl Profiler {
                 self_pct: 100.0,
                 total_pct: 100.0,
                 calls: samples.len() as u64,
-                avg_ns: if samples.is_empty() { 0 } else { (session_duration_ns / samples.len() as u64) },
+                avg_ns: if samples.is_empty() { 0 } else { session_duration_ns / samples.len() as u64 },
                 depth: 0,
                 x: 0.0,
                 w: 100.0,
@@ -195,6 +214,27 @@ impl Profiler {
         let crate_rollups = build_rollups(&sampled_functions, RollupKind::Crate);
         let module_rollups = build_rollups(&sampled_functions, RollupKind::Module);
         let functions = convert_functions(&sampled_functions, session_duration_ns);
+        if hotspot_snapshots.is_empty() {
+            sampling_diagnostics.fallback_used = true;
+            if sampling_diagnostics.fidelity == "unknown" {
+                sampling_diagnostics.fidelity = "fallback-only".to_string();
+            }
+            hotspot_snapshots.push(rustscope::output::schema::HotspotSnapshot {
+                ts: end_ts,
+                top_functions: crate_rollups
+                    .iter()
+                    .map(|row| rustscope::output::schema::RollupRecord {
+                        name: row.name.clone(),
+                        total_pct: row.total_pct,
+                        self_pct: row.self_pct,
+                        calls: row.calls,
+                        function_count: row.function_count,
+                    })
+                    .collect(),
+                crate_rollups: crate_rollups.clone(),
+                module_rollups: module_rollups.clone(),
+            });
+        }
 
         Ok(OutputSchema {
             schema_version: 3,
@@ -249,6 +289,8 @@ impl Profiler {
             memory_events: memory_events.clone(),
             crate_rollups,
             module_rollups,
+            hotspot_snapshots,
+            sampling_diagnostics: Some(sampling_diagnostics),
         })
     }
 
@@ -309,10 +351,11 @@ impl Profiler {
         event_occurred: bool,
     ) {
         let mut last_refresh = self.last_dashboard_refresh_secs.lock().await;
-        if *last_refresh == elapsed_secs && !event_occurred {
+        let refresh_bucket = self.started_at.elapsed().as_millis() as u64 / self.refresh_ms();
+        if *last_refresh == refresh_bucket && !event_occurred {
             return;
         }
-        *last_refresh = elapsed_secs;
+        *last_refresh = refresh_bucket;
 
         let peak_cpu_pct = samples.iter().map(|sample| sample.cpu_pct).fold(0.0, f64::max);
         let peak_heap_mb = samples.iter().map(|sample| sample.heap_mb).fold(0.0, f64::max);
@@ -322,12 +365,20 @@ impl Profiler {
         let memory_events = self.memory_events.lock().await;
         let event_count = memory_events.len();
         let last_event = memory_events.last().map(|event| format!("{} | {}", event.event_type, event.location));
+        let recent_events = memory_events
+            .iter()
+            .rev()
+            .take(5)
+            .map(|event| format!("{} | {}", event.event_type, event.location))
+            .collect();
 
         print_live_dashboard(&LiveSnapshot {
             target: if self.pid > 0 { format!("pid-{}", self.pid) } else { "session".to_string() },
             pid: self.pid,
             elapsed_secs,
             samples: samples.len(),
+            compact: self.compact_mode.load(Ordering::SeqCst),
+            refresh_ms: self.refresh_ms(),
             current_cpu_pct,
             peak_cpu_pct,
             current_heap_mb,
@@ -340,6 +391,7 @@ impl Profiler {
             peak_syscalls_per_sec,
             event_count,
             last_event,
+            recent_events,
         });
     }
 }

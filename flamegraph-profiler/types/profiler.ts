@@ -87,6 +87,8 @@ export interface ProfileData {
     location: string;
     size_bytes?: number;
   }>;
+  /** Time-indexed hotspot snapshots for session correlation */
+  hotspotSnapshots?: ProfileHotspotSnapshot[];
   /** Raw uploaded JSON */
   raw?: any;
 }
@@ -97,6 +99,13 @@ export interface ProfileRollup {
   self_pct: number;
   calls: number;
   function_count: number;
+}
+
+export interface ProfileHotspotSnapshot {
+  ts: number;
+  top_functions: ProfileRollup[];
+  crate_rollups: ProfileRollup[];
+  module_rollups: ProfileRollup[];
 }
 
 export interface ProfileFunction {

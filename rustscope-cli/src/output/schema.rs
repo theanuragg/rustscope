@@ -1,9 +1,11 @@
 pub use rustscope::output::schema::{
+    HotspotSnapshot,
     MemoryEvent,
     ProcessSample as Sample,
     ProcessSummary as Summary,
     ProfileSession as OutputSchema,
     RollupRecord as Rollup,
+    SamplingDiagnosticsRecord,
 };
 
 #[derive(Debug, Clone)]

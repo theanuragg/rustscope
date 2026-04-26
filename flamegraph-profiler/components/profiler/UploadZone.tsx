@@ -11,19 +11,24 @@ interface Props {
 
 export function UploadZone({ onLoad, onLoadDemo }: Props) {
   const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const processFile = useCallback(
     async (file: File) => {
       try {
+        setError(null);
         const text = await file.text();
         const json = JSON.parse(text);
         const result = parseSession(json);
         if (result.ok && result.data) {
           onLoad(result.data);
+          return;
         }
+        setError(result.error || "Unsupported RustScope profile JSON");
       } catch (e) {
         console.error("Failed to parse profile:", e);
+        setError(e instanceof Error ? e.message : "Failed to parse profile");
       }
     },
     [onLoad]
@@ -82,6 +87,12 @@ export function UploadZone({ onLoad, onLoadDemo }: Props) {
       <div className="text-[11px] text-[var(--text2)] mb-6">
         drop profiling json here or press L to load
       </div>
+
+      {error ? (
+        <div className="mb-4 max-w-[420px] text-center text-[11px] text-[#d97b7b]">
+          {error}
+        </div>
+      ) : null}
 
       <div
         onDrop={onDrop}

@@ -59,7 +59,7 @@ const MemorySchema = z.object({
   net_retained_bytes: z.number().optional(),
   mean_alloc_per_call: z.number().optional(),
   alloc_op_count: z.number().optional(),
-}).optional();
+}).nullable().optional();
 
 const CpuCountersSchema = z.object({
   cpu_cycles: z.number().optional(),
@@ -67,7 +67,7 @@ const CpuCountersSchema = z.object({
   ipc: z.number().optional(),
   cache_miss_rate: z.number().optional(),
   branch_miss_rate: z.number().optional(),
-}).optional();
+}).nullable().optional();
 
 const FunctionSchema = z.object({
   name: z.string(),
@@ -126,6 +126,12 @@ const UploadedProfileSchema = z.object({
   memory_events: z.array(z.any()).optional(),
   crate_rollups: z.array(RollupSchema).optional(),
   module_rollups: z.array(RollupSchema).optional(),
+  hotspot_snapshots: z.array(z.object({
+    ts: z.number(),
+    top_functions: z.array(RollupSchema).optional(),
+    crate_rollups: z.array(RollupSchema).optional(),
+    module_rollups: z.array(RollupSchema).optional(),
+  })).optional(),
   session_meta: z.any().optional(),
 });
 
@@ -184,6 +190,23 @@ export interface ParseResult {
   data?: ProfileData;
 }
 
+function stripNulls(value: unknown): unknown {
+  if (value === null) {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    return value.map(stripNulls);
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .map(([key, inner]) => [key, stripNulls(inner)])
+        .filter(([, inner]) => inner !== undefined)
+    );
+  }
+  return value;
+}
+
 function parseCallTree(
   nodes: any[],
   durationNs: number,
@@ -230,9 +253,11 @@ function parseCallTree(
 }
 
 export function parseSession(json: unknown): ParseResult {
-  const parsed = UploadedProfileSchema.safeParse(json);
+  const parsed = UploadedProfileSchema.safeParse(stripNulls(json));
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0].message };
+    const issue = parsed.error.issues[0];
+    const path = issue.path.length > 0 ? `${issue.path.join(".")}: ` : "";
+    return { ok: false, error: `${path}${issue.message}` };
   }
 
   const raw = parsed.data as any;
@@ -258,12 +283,36 @@ export function parseSession(json: unknown): ParseResult {
     totalSamples: 0
   };
 
+  const normalizedFunctions = (raw.functions || []).map((f: any) => {
+    const totalPct = f.timing?.pct_of_session || f.total_pct || 0;
+    const totalNs = f.timing?.total_ns || (totalPct / 100) * durationNs;
+    const selfPct = f.timing?.self_pct || f.self_pct || totalPct;
+    const selfNs = f.timing?.self_ns || (selfPct / 100) * durationNs;
+
+    return {
+      ...f,
+      module_path: f.module_path || f.module,
+      call_count: f.call_count || f.calls || 0,
+      timing: {
+        total_ns: totalNs,
+        self_ns: selfNs,
+        avg_ns: f.timing?.avg_ns || f.avg_ns || 0,
+        min_ns: f.timing?.min_ns || 0,
+        max_ns: f.timing?.max_ns || totalNs,
+        p50_ns: f.timing?.p50_ns || 0,
+        p95_ns: f.timing?.p95_ns || 0,
+        p99_ns: f.timing?.p99_ns || 0,
+        pct_of_session: totalPct,
+      },
+    };
+  });
+
   let cpu: ProfileFrame[] = [];
   if (raw.call_trees) {
     cpu = parseCallTree(raw.call_trees, durationNs);
-  } else if (raw.functions) {
+  } else if (normalizedFunctions.length > 0) {
     let curX = 0;
-    cpu = raw.functions.map((f: any) => {
+    cpu = normalizedFunctions.map((f: any) => {
       const totalPct = f.timing?.pct_of_session || f.total_pct || 0;
       const frame = {
         name: f.name,
@@ -291,11 +340,24 @@ export function parseSession(json: unknown): ParseResult {
     data: {
       meta,
       cpu,
-      functions: raw.functions || [],
+      functions: normalizedFunctions,
       crateRollups: raw.crate_rollups || [],
       moduleRollups: raw.module_rollups || [],
-      samples: raw.process_samples || raw.samples,
-      events: raw.memory_events,
+      samples: (raw.process_samples || raw.samples || []).map((sample: any) => ({
+        ts: sample.ts || 0,
+        cpu_pct: sample.cpu_pct || 0,
+        heap_mb: sample.heap_mb || 0,
+        threads: sample.threads || 0,
+        open_fds: sample.open_fds || 0,
+        syscalls_per_sec: sample.syscalls_per_sec || 0,
+      })),
+      events: (raw.memory_events || []).map((event: any) => ({
+        ts: event.ts || 0,
+        type: event.type || event.event_type || "event",
+        location: event.location || "",
+        size_bytes: event.size_bytes,
+      })),
+      hotspotSnapshots: raw.hotspot_snapshots || [],
       raw, // Keep raw for detailed views
     },
   };

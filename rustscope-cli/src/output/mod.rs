@@ -14,6 +14,7 @@ pub fn write_json(path: &str, data: &OutputSchema) -> Result<()> {
 
 pub fn print_overview(path: &str, data: &OutputSchema) {
     let process_summary = data.process_summary.as_ref();
+    let sampling_diagnostics = data.sampling_diagnostics.as_ref();
     let project_name = process_summary.map(|s| s.project.as_str()).unwrap_or("unknown");
     let target_binary = process_summary.map(|s| s.target_binary.as_str()).unwrap_or("unknown");
     let duration_sec = process_summary.map(|s| s.duration_sec).unwrap_or(data.session_duration_ns / 1_000_000_000);
@@ -39,6 +40,14 @@ pub fn print_overview(path: &str, data: &OutputSchema) {
         yes_no(!data.memory_events.is_empty()),
         yes_no(!data.functions.is_empty()),
     );
+    if let Some(diag) = sampling_diagnostics {
+        println!(
+            "  Sampler         : {} | fidelity={} | fallback={}",
+            diag.backend,
+            diag.fidelity,
+            yes_no(diag.fallback_used)
+        );
+    }
     println!();
 
     println!("  System metrics");
@@ -112,6 +121,18 @@ pub fn print_overview(path: &str, data: &OutputSchema) {
     print_rollups("Crate rollups", &data.crate_rollups);
     print_rollups("Module rollups", &data.module_rollups);
 
+    if let Some(diag) = sampling_diagnostics {
+        println!("  Sampling diagnostics");
+        println!("  --------------------");
+        println!("  Backend         : {}", diag.backend);
+        println!("  Fidelity        : {}", diag.fidelity);
+        println!("  Raw samples     : {}", diag.raw_samples);
+        println!("  Symbolized      : {}", diag.symbolized_samples);
+        println!("  Dropped         : {}", diag.dropped_samples);
+        println!("  Unknown symbols : {}", diag.unknown_symbols);
+        println!();
+    }
+
     println!("  Notes");
     println!("  -----");
     if data.functions.is_empty() {
@@ -131,6 +152,8 @@ pub struct LiveSnapshot {
     pub pid: u32,
     pub elapsed_secs: u64,
     pub samples: usize,
+    pub compact: bool,
+    pub refresh_ms: u64,
     pub current_cpu_pct: f64,
     pub peak_cpu_pct: f64,
     pub current_heap_mb: f64,
@@ -143,6 +166,7 @@ pub struct LiveSnapshot {
     pub peak_syscalls_per_sec: u64,
     pub event_count: usize,
     pub last_event: Option<String>,
+    pub recent_events: Vec<String>,
 }
 
 pub fn print_live_dashboard(snapshot: &LiveSnapshot) {
@@ -154,7 +178,29 @@ pub fn print_live_dashboard(snapshot: &LiveSnapshot) {
     println!("  Elapsed        : {}s", snapshot.elapsed_secs);
     println!("  Samples        : {}", snapshot.samples);
     println!("  Events         : {}", snapshot.event_count);
+    println!("  Mode           : {}", if snapshot.compact { "compact" } else { "full" });
+    println!("  Refresh        : {} ms", snapshot.refresh_ms);
+    println!("  Controls       : q=quit c=compact s=slow f=fast + Enter");
     println!();
+    if snapshot.compact {
+        println!("  CPU {:>6.1}% | HEAP {:>6.1} MB | THR {:>4} | FD {:>4} | SYS {:>5}",
+            snapshot.current_cpu_pct,
+            snapshot.current_heap_mb,
+            snapshot.current_threads,
+            snapshot.current_fds,
+            snapshot.current_syscalls_per_sec
+        );
+        println!("  Peak CPU {:>6.1}% | Peak heap {:>6.1} MB | Peak thr {:>4} | Peak fd {:>4}",
+            snapshot.peak_cpu_pct,
+            snapshot.peak_heap_mb,
+            snapshot.peak_threads,
+            snapshot.peak_fds
+        );
+        println!();
+        println!("  Latest event   : {}", snapshot.last_event.as_deref().unwrap_or("none"));
+        return;
+    }
+
     println!("  Current metrics");
     println!("  ---------------");
     println!("  CPU            : {:>6.1}%", snapshot.current_cpu_pct);
@@ -176,6 +222,16 @@ pub fn print_live_dashboard(snapshot: &LiveSnapshot) {
     match &snapshot.last_event {
         Some(event) => println!("  {}", event),
         None => println!("  none"),
+    }
+    println!();
+    println!("  Event log");
+    println!("  ---------");
+    if snapshot.recent_events.is_empty() {
+        println!("  none");
+    } else {
+        for event in &snapshot.recent_events {
+            println!("  - {}", event);
+        }
     }
 }
 

@@ -5,6 +5,8 @@ import type { ProfileData } from "@/types/profiler";
 import { formatNs, formatBytes } from "@/lib/parse-profile";
 import { TimelineCanvas } from "./TimelineCanvas";
 import { StatsTab } from "./StatsTab";
+import { SessionTab } from "./SessionTab";
+import { ProjectTab } from "./ProjectTab";
 import { MemoryTab } from "./MemoryTab";
 import { ZonesTab } from "./ZonesTab";
 import { AsyncTab } from "./AsyncTab";
@@ -21,7 +23,7 @@ interface Props {
 export function Dashboard({ data, onReset }: Props) {
   const [detailWidth, setDetailWidth] = useState(380);
   const [isResizing, setIsResizing] = useState(false);
-  const [activeTab, setActiveTab] = useState("Stats");
+  const [activeTab, setActiveTab] = useState("Session");
   const [chartType, setChartType] = useState<"flame" | "icicle">("icicle");
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
   const [showFrameInfo, setShowFrameInfo] = useState(true);
@@ -65,14 +67,18 @@ export function Dashboard({ data, onReset }: Props) {
       } else if (key === "f") {
         // Fit
       } else if (key === "1") {
-        setActiveTab("Stats");
+        setActiveTab("Session");
       } else if (key === "2") {
-        setActiveTab("Memory");
+        setActiveTab("Project");
       } else if (key === "3") {
-        setActiveTab("Zones");
+        setActiveTab("Stats");
       } else if (key === "4") {
-        setActiveTab("Async");
+        setActiveTab("Memory");
       } else if (key === "5") {
+        setActiveTab("Zones");
+      } else if (key === "6") {
+        setActiveTab("Async");
+      } else if (key === "7") {
         setActiveTab("Locks");
       } else if (key === "escape") {
         setShowFrameInfo(false);
@@ -91,6 +97,10 @@ export function Dashboard({ data, onReset }: Props) {
 
   const renderActiveTab = () => {
     switch (activeTab) {
+      case "Session":
+        return <SessionTab data={data} />;
+      case "Project":
+        return <ProjectTab data={data} />;
       case "Stats":
         return <StatsTab data={data} onSelectFunction={() => {}} />;
       case "Memory":
@@ -152,7 +162,7 @@ export function Dashboard({ data, onReset }: Props) {
         <div className="w-[1px] h-[16px] bg-[var(--border2)] mx-1" />
 
         <div className="flex items-center gap-1">
-          {["Zones", "Memory", "Locks", "Async", "Compare"].map((tab) => (
+          {["Session", "Project", "Stats", "Memory", "Zones", "Async", "Locks", "Compare"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -212,7 +222,7 @@ export function Dashboard({ data, onReset }: Props) {
         >
           {/* Detail panel tabs */}
           <div className="h-[22px] bg-[var(--bg1)] border-b border-[var(--border2)] flex items-center">
-            {["Stats", "Memory", "Zones", "Async", "Locks", "Compare"].map((tab) => (
+            {["Session", "Project", "Stats", "Memory", "Zones", "Async", "Locks", "Compare"].map((tab) => (
               <div
                 key={tab}
                 onClick={() => setActiveTab(tab)}

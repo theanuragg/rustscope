@@ -342,10 +342,12 @@ impl GlobalProfiler {
             process_summary: None,
             process_samples: Vec::new(),
             memory_events: Vec::new(),
-            crate_rollups: Vec::new(),
-            module_rollups: Vec::new(),
-        }
+        crate_rollups: Vec::new(),
+        module_rollups: Vec::new(),
+        hotspot_snapshots: Vec::new(),
+        sampling_diagnostics: None,
     }
+}
 }
 
 fn build_host_info() -> HostInfo {

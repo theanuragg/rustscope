@@ -67,6 +67,12 @@ pub struct ProfileSession {
     /// Aggregated module-level hotspots when sampling data is available.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub module_rollups: Vec<RollupRecord>,
+    /// Time-indexed hotspot snapshots captured during external session profiling.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub hotspot_snapshots: Vec<HotspotSnapshot>,
+    /// Sampling backend diagnostics and fidelity summary from rustscope-cli.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sampling_diagnostics: Option<SamplingDiagnosticsRecord>,
 }
 
 /// Static information about the machine and build.
@@ -270,6 +276,25 @@ pub struct RollupRecord {
     pub self_pct: f64,
     pub calls: u64,
     pub function_count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HotspotSnapshot {
+    pub ts: u64,
+    pub top_functions: Vec<RollupRecord>,
+    pub crate_rollups: Vec<RollupRecord>,
+    pub module_rollups: Vec<RollupRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SamplingDiagnosticsRecord {
+    pub backend: String,
+    pub raw_samples: u64,
+    pub symbolized_samples: u64,
+    pub dropped_samples: u64,
+    pub unknown_symbols: u64,
+    pub fallback_used: bool,
+    pub fidelity: String,
 }
 
 pub fn is_zero(v: &u64) -> bool {
