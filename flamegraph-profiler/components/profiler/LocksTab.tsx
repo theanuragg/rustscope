@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function LocksTab({ data }: Props) {
-  const hasLockData = data.functions.some(f => (f as any).sync_contention != null);
+  const hasLockData = data.functions?.some(f => (f as any).sync_contention != null) ?? false;
 
   if (!hasLockData) {
     return (
@@ -36,7 +36,7 @@ export function LocksTab({ data }: Props) {
           </tr>
         </thead>
         <tbody>
-          {data.functions.map((f, i) => {
+          {data.functions?.map((f, i) => {
             const contention = (f as any).sync_contention;
             if (!contention) return null;
             return (

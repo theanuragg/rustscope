@@ -274,7 +274,7 @@ export function Dashboard({ data, onReset }: Props) {
             initialY={140}
           >
             <div className="flex flex-col gap-1 text-[11px]">
-              {data.functions.slice(0, 5).map(f => (
+              {data.functions?.slice(0, 5).map(f => (
                 <div key={f.name} className="flex justify-between h-[18px] hover:bg-[var(--bg2)] cursor-pointer px-1">
                   <span className="truncate max-w-[120px] text-[var(--text1)]">{f.name}</span>
                   <span className="text-[var(--text0)]">{formatNs(f.timing?.total_ns || 0)}</span>
@@ -288,7 +288,7 @@ export function Dashboard({ data, onReset }: Props) {
       {/* STATUSBAR (20px) */}
       <div className="h-[20px] bg-[var(--bg0)] border-t border-[var(--border)] flex items-center px-2 shrink-0 justify-between text-[11px] text-[var(--text1)]">
         <div className="flex items-center gap-3">
-          <span>Functions: {data.functions.length}</span>
+          <span>Functions: {data.functions?.length ?? 0}</span>
           <span className="text-[var(--text3)]">·</span>
           <span>Frames: {data.raw?.call_trees?.length || 0}</span>
           <span className="text-[var(--text3)]">·</span>

@@ -1,9 +1,11 @@
 "use client";
 
 import React from "react";
-import type { ProfileData, ProfileMode } from "@/types/profiler";
+import type { ProfileData } from "@/types/profiler";
 import { formatNs, formatBytes } from "@/lib/demangle";
 import clsx from "clsx";
+
+type ProfileMode = "cpu" | "alloc" | "offcpu";
 
 interface Props {
   data: ProfileData;

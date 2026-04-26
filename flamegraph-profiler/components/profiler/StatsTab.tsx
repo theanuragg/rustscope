@@ -12,11 +12,11 @@ interface Props {
 export function StatsTab({ data, onSelectFunction }: Props) {
   const [selectedFunc, setSelectedFunc] = useState<string | null>(null);
 
-  const sortedFunctions = [...data.functions].sort((a, b) => (b.timing?.total_ns || 0) - (a.timing?.total_ns || 0));
+  const sortedFunctions = [...(data.functions || [])].sort((a, b) => (b.timing?.total_ns || 0) - (a.timing?.total_ns || 0));
   const crateRollups = data.crateRollups || [];
   const moduleRollups = data.moduleRollups || [];
 
-  const selectedFunctionData = data.functions.find(f => f.name === selectedFunc);
+  const selectedFunctionData = data.functions?.find(f => f.name === selectedFunc);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

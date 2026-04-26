@@ -5,11 +5,11 @@ import type { ProfileMode, ChartType } from "@/types/profiler";
 import clsx from "clsx";
 
 interface Props {
-  mode: ProfileMode;
+  mode: ProfileMode | "offcpu";
   chartType: ChartType;
 }
 
-const GUIDE_CONTENT: Record<ProfileMode, {
+const GUIDE_CONTENT: Record<"cpu" | "offcpu", {
   title: string;
   what: string;
   width: string;
@@ -23,13 +23,6 @@ const GUIDE_CONTENT: Record<ProfileMode, {
     height: "Height = call depth. The bottom bar is your process root. Each row above it is a function called by the one below.",
     tip: "Look for wide bars near the top of a tall stack — that's a leaf function burning real CPU with no subcalls to hide in.",
   },
-  alloc: {
-    title: "reading an allocation profile",
-    what: "Each bar shows a function's share of heap allocations. This is sampled at alloc sites — not CPU time.",
-    width: "Width = % of total heap allocations that passed through this function. Wider = allocates more.",
-    height: "Height = call depth into the allocating call stack. Find the true allocation site at the top of a tall stack.",
-    tip: "If Vec::push or String::from appear wide, you have unbounded collection growth. If __rdl_alloc is wide, your allocator is thrashing.",
-  },
   offcpu: {
     title: "reading an off-cpu profile",
     what: "This shows time your process was blocked — NOT executing. CPU profiles are blind to this. Off-CPU reveals I/O waits, mutex contention, and scheduler latency.",
@@ -41,7 +34,7 @@ const GUIDE_CONTENT: Record<ProfileMode, {
 
 export function ReadingGuide({ mode, chartType }: Props) {
   const [open, setOpen] = useState(false);
-  const content = GUIDE_CONTENT[mode];
+  const content = GUIDE_CONTENT[mode as "cpu" | "offcpu"];
   const isIcicle = chartType === "icicle";
 
   return (

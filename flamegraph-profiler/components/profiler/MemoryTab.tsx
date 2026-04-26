@@ -13,7 +13,7 @@ export function MemoryTab({ data }: Props) {
   const totalDeallocated = data.raw?.session_memory?.total_dealloc_bytes || 0;
   const retained = totalAllocated - totalDeallocated;
 
-  const leakSuspects = data.functions.filter(f => (f.memory?.net_retained_bytes || 0) > 0);
+  const leakSuspects = data.functions?.filter(f => (f.memory?.net_retained_bytes || 0) > 0) ?? [];
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -49,7 +49,7 @@ export function MemoryTab({ data }: Props) {
             </tr>
           </thead>
           <tbody>
-            {data.functions.map((f, i) => {
+            {data.functions?.map((f, i) => {
               const delta = f.memory?.net_retained_bytes || 0;
               return (
                 <tr

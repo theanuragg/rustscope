@@ -63,7 +63,7 @@ export function TimelineCanvas({ data, onSelectZone, chartType }: Props) {
   const functionColors = useMemo(() => {
     const map: Record<string, string> = {};
     const palette = chartType === "flame" ? FLAME_PALETTE : ICICLE_PALETTE;
-    data.functions.forEach((f, i) => {
+    data.functions?.forEach((f, i) => {
       map[f.name] = palette[i % palette.length];
     });
     return map;
@@ -214,7 +214,7 @@ export function TimelineCanvas({ data, onSelectZone, chartType }: Props) {
               badgeX -= 12;
             };
 
-            const func = data.functions.find(f => f.name === node.name);
+            const func = data.functions?.find(f => f.name === node.name);
             if (func) {
               if (func.sync_contention?.mutex_wait_ns && func.sync_contention.mutex_wait_ns > 0) drawBadge("L", COLORS.zoneRed);
               if (func.generics?.trait_object_calls && func.generics.trait_object_calls > 0) drawBadge("D", COLORS.zonePurple);
@@ -308,7 +308,7 @@ export function TimelineCanvas({ data, onSelectZone, chartType }: Props) {
       const mouseNs = offsetX + (x - LABEL_WIDTH) / scale;
       
       // Find function at this time (mocking for now, would need tree traversal)
-      const func = data.functions.find(f => (f.timing?.total_ns || 0) > mouseNs);
+      const func = data.functions?.find(f => (f.timing?.total_ns || 0) > mouseNs);
       if (func) setHoveredZone(func);
       else setHoveredZone(null);
     } else {

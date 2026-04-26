@@ -1,4 +1,3 @@
-// ─── Core domain types ───────────────────────────────────────────────────────
 
 /** A single frame in a call stack */
 export interface ProfileFrame {
@@ -50,7 +49,7 @@ export type FrameLayer =
   | "unknown";
 
 /** Profile mode — what metric is being visualised */
-export type ProfileMode = "timeline" | "cpu" | "memory" | "threads" | "allocator" | "compare";
+export type ProfileMode = "timeline" | "cpu" | "memory" | "threads" | "allocator" | "compare" | "alloc" | "offcpu";
 
 /** Chart layout */
 export type ChartType = "flame" | "icicle";
@@ -62,7 +61,7 @@ export interface ProfileData {
   /** Frames for cpu mode */
   cpu: ProfileFrame[];
   /** Detailed function list (Stats view) */
-  functions: ProfileFunction[];
+  functions?: ProfileFunction[];
   /** Crate-level hotspot rollups */
   crateRollups?: ProfileRollup[];
   /** Module-level hotspot rollups */

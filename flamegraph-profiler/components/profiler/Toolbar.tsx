@@ -11,7 +11,7 @@ interface Props {
   dispatch: React.Dispatch<ProfilerAction>;
 }
 
-const MODES: Array<{ id: ProfileMode; label: string; desc: string }> = [
+const MODES: Array<{ id: ProfileMode, label: string, desc: string }> = [
   { id: "cpu",    label: "CPU time",    desc: "On-CPU samples" },
   { id: "alloc",  label: "Allocations", desc: "Heap alloc trace" },
   { id: "offcpu", label: "Off-CPU",     desc: "Blocked / waiting" },

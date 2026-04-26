@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function AsyncTab({ data }: Props) {
-  const hasAsyncData = data.functions.some(f => (f as any).async_task != null);
+  const hasAsyncData = data.functions?.some(f => (f as any).async_task != null) ?? false;
 
   if (!hasAsyncData) {
     return (
@@ -37,7 +37,7 @@ export function AsyncTab({ data }: Props) {
           </tr>
         </thead>
         <tbody>
-          {data.functions.map((f, i) => {
+          {data.functions?.map((f, i) => {
             const asyncTask = (f as any).async_task;
             if (!asyncTask) return null;
             return (

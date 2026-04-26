@@ -66,7 +66,7 @@ export function ZonesTab({ data, onSelectZone }: Props) {
       "var(--zone-purple)", "var(--zone-pink)", "var(--zone-gray)"
     ];
     const map: Record<string, string> = {};
-    data.functions.forEach((f, i) => {
+    data.functions?.forEach((f, i) => {
       map[f.name] = colors[i % colors.length];
     });
     return map;
@@ -90,7 +90,7 @@ export function ZonesTab({ data, onSelectZone }: Props) {
       <div className="h-[120px] border-t border-[var(--border2)] bg-[var(--bg1)] p-2 shrink-0 overflow-auto">
         <div className="tracy-label-caps mb-1 uppercase">zone color legend</div>
         <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-          {data.functions.map((f, i) => (
+          {data.functions?.map((f, i) => (
             <div key={f.name} className="flex items-center gap-2 text-[10px] h-[16px] truncate">
               <div
                 className="w-3 h-3 rounded-sm flex-shrink-0"

@@ -40,9 +40,9 @@ export function CompareTab({ current }: Props) {
   const rows = useMemo(() => {
     if (!baseline) return [];
 
-    const currentMap = new Map(current.functions.map((fn) => [fn.name, fn]));
-    const baselineMap = new Map(baseline.functions.map((fn) => [fn.name, fn]));
-    const names = new Set([...currentMap.keys(), ...baselineMap.keys()]);
+    const currentMap = new Map((current.functions || []).map((fn) => [fn.name, fn]));
+    const baselineMap = new Map((baseline.functions || []).map((fn) => [fn.name, fn]));
+    const names:any = new Set(Array.from(currentMap.keys()).concat(Array.from(baselineMap.keys())));
 
     return [...names]
       .map((name): DiffRow => {
